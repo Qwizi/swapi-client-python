@@ -7,10 +7,7 @@ An asynchronous Python client for the Serwis Planner API.
 -   Asynchronous design using `httpx` and `asyncio`.
 -   Token-based authentication.
 -   Helper methods for all major API endpoints.
--   Generic helpers for `meta`, `autoselect`, `history`, and `audit` endpoints.
--   Pagination helper (`get_all_pages`) to easily fetch all results from paginated endpoints.
 -   Powerful `SWQueryBuilder` for creating complex queries with filtering, sorting, and field selection.
--   No Pydantic models required; uses plain Python dictionaries for all data.
 
 ## Installation
 
@@ -179,7 +176,5 @@ The client provides a comprehensive set of methods for interacting with the Serw
 -   PDF Generation
 -   History and Auditing
 -   Bulk and Contextual Operations
--   Global Search
--   And many more...
 
 Each endpoint has corresponding `get`, `create`, `update`, `patch`, and `delete` methods where applicable. For a full list of available methods, please refer to the source code in `src/swapi_client/client.py`.
