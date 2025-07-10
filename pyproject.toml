@@ -1,6 +1,7 @@
 [project]
 name = "swapi-client"
-version = "0.1.0"
+authors = ["Adrian Ciolek <ciolek.adrian@protonmail.com>"]
+version = "0.0.1"
 description = "A Python client for the SerwisPlanner API"
 readme = "README.md"
 requires-python = ">=3.12"
