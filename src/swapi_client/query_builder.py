@@ -1,8 +1,24 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 
 class SWQueryBuilder:
-    """Helper class to build complex SW API query parameters"""
+    """
+    Helper class to build complex SW API query parameters.
+    
+    Enhanced filtering capabilities:
+    - Basic filtering: filter("name", "value") -> filter[name][eq]=value
+    - Operator filtering: filter("age", 18, "gte") -> filter[age][gte]=18  
+    - Nested filtering: filter(["attributes", "476"], "some text", "hasText") 
+                       -> filter[attributes][476][hasText]=some text
+    - Complex OR filters: filter_or({("attributes", "476"): {"hasText": "text"}})
+                         -> filterOr[0][attributes][476][hasText]=text
+    - Complex AND filters: filter_and({("nested", "field"): "value"})
+                          -> filterAnd[0][nested][field][eq]=value
+    
+    Note: Operator is always placed at the end of the filter structure for consistency.
+    Supported operators: eq, ne, gt, lt, gte, lte, in, notIn, like, ilike, notLike, 
+                        isNull, isNotNull, hasText, and more.
+    """
 
     def __init__(self):
         self.params = {}
@@ -74,15 +90,35 @@ class SWQueryBuilder:
         return self
 
     def filter(
-        self, field: str, value: Any = None, operator: str = "eq"
+        self, 
+        field: Union[str, List[str]], 
+        value: Any = None, 
+        operator: str = "eq"
     ) -> "SWQueryBuilder":
-        """Add filter parameter"""
-        if operator in ["isNull", "isNotNull"]:
-            self.params[f"filter[{field}][{operator}]"] = ""
-        elif operator == "eq":
-            self.params[f"filter[{field}]"] = str(value)
+        """
+        Add filter parameter with support for nested field paths.
+        
+        Args:
+            field: Field name as string or list of nested field names.
+                   Examples: 
+                   - "name" -> filter[name][operator]
+                   - ["attributes", "476"] -> filter[attributes][476][operator]
+            value: The value to filter by
+            operator: The operator to use (eq, ne, gt, lt, gte, lte, in, notIn, 
+                     like, ilike, notLike, isNull, isNotNull, hasText, etc.)
+        """
+        # Build the field path
+        if isinstance(field, list):
+            field_path = "][".join(field)
+            filter_key = f"filter[{field_path}]"
         else:
-            self.params[f"filter[{field}][{operator}]"] = (
+            filter_key = f"filter[{field}]"
+        
+        # Always add operator at the end for consistency
+        if operator in ["isNull", "isNotNull"]:
+            self.params[f"{filter_key}[{operator}]"] = ""
+        else:
+            self.params[f"{filter_key}[{operator}]"] = (
                 str(value)
                 if not isinstance(value, list)
                 else ",".join(map(str, value))
@@ -90,50 +126,103 @@ class SWQueryBuilder:
         return self
 
     def filter_or(
-        self, filters: Dict[str, Any], group_index: int = 0
+        self, filters: Dict[Union[str, tuple], Any], group_index: int = 0
     ) -> "SWQueryBuilder":
-        """Add filterOr parameters"""
+        """
+        Add filterOr parameters with support for nested field paths.
+        
+        Args:
+            filters: Dictionary where keys can be:
+                    - Simple field names (str): "name"
+                    - Nested field tuples: ("attributes", "476", "hasText")
+                    Values can be:
+                    - Simple values for equality comparison
+                    - Dict with operator and value: {"hasText": "some_value"}
+            group_index: The OR group index
+        """
         for field, filter_config in filters.items():
+            # Build field path
+            if isinstance(field, tuple):
+                field_path = "][".join(field)
+                base_key = f"filterOr[{group_index}][{field_path}]"
+            else:
+                base_key = f"filterOr[{group_index}][{field}]"
+            
             if isinstance(filter_config, dict):
                 for operator, value in filter_config.items():
                     if operator in ["isNull", "isNotNull"]:
-                        self.params[f"filterOr[{group_index}][{field}][{operator}]"] = ""
+                        self.params[f"{base_key}[{operator}]"] = ""
                     else:
                         filter_value = (
                             str(value)
                             if not isinstance(value, list)
                             else ",".join(map(str, value))
                         )
-                        self.params[
-                            f"filterOr[{group_index}][{field}][{operator}]"
-                        ] = filter_value
+                        self.params[f"{base_key}[{operator}]"] = filter_value
             else:
-                self.params[f"filterOr[{group_index}][{field}]"] = str(filter_config)
+                # For simple values, default to 'eq' operator
+                self.params[f"{base_key}[eq]"] = str(filter_config)
         return self
 
     def filter_and(
-        self, filters: Dict[str, Any], group_index: int = 0
+        self, filters: Dict[Union[str, tuple], Any], group_index: int = 0
     ) -> "SWQueryBuilder":
-        """Add filterAnd parameters"""
+        """
+        Add filterAnd parameters with support for nested field paths.
+        
+        Args:
+            filters: Dictionary where keys can be:
+                    - Simple field names (str): "name"
+                    - Nested field tuples: ("attributes", "476")
+                    Values can be:
+                    - Simple values for equality comparison
+                    - Dict with operator and value: {"hasText": "some_value"}
+            group_index: The AND group index
+        """
         for field, filter_config in filters.items():
+            # Build field path
+            if isinstance(field, tuple):
+                field_path = "][".join(field)
+                base_key = f"filterAnd[{group_index}][{field_path}]"
+            else:
+                base_key = f"filterAnd[{group_index}][{field}]"
+            
             if isinstance(filter_config, dict):
                 for operator, value in filter_config.items():
                     if operator in ["isNull", "isNotNull"]:
-                        self.params[
-                            f"filterAnd[{group_index}][{field}][{operator}]"
-                        ] = ""
+                        self.params[f"{base_key}[{operator}]"] = ""
                     else:
                         filter_value = (
                             str(value)
                             if not isinstance(value, list)
                             else ",".join(map(str, value))
                         )
-                        self.params[
-                            f"filterAnd[{group_index}][{field}][{operator}]"
-                        ] = filter_value
+                        self.params[f"{base_key}[{operator}]"] = filter_value
             else:
-                self.params[f"filterAnd[{group_index}][{field}]"] = str(filter_config)
+                # For simple values, default to 'eq' operator
+                self.params[f"{base_key}[eq]"] = str(filter_config)
         return self
+
+    def filter_nested(
+        self, 
+        field_path: str, 
+        value: Any = None, 
+        operator: str = "eq"
+    ) -> "SWQueryBuilder":
+        """
+        Convenience method for creating nested filters using dot notation.
+        
+        Args:
+            field_path: Dot-separated field path like "attributes.476"
+            value: The value to filter by
+            operator: The operator to use
+            
+        Example:
+            filter_nested("attributes.476", "some text", "hasText")
+            -> filter[attributes][476][hasText]=some text
+        """
+        field_list = field_path.split(".")
+        return self.filter(field_list, value, operator)
 
     def build(self) -> Dict[str, str]:
         """Build and return the query parameters"""
