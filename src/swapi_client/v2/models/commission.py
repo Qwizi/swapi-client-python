@@ -51,6 +51,14 @@ class AttributesProxy:
                 f"Attribute id={attr_id} does not exist on this Commission instance"
             )
 
+        # Update _attributes_by_id immediately for in-memory reads
+        existing_entry = self._commission._attributes_by_id[attr_id]
+        # Preserve existing metadata (type, timestamps, etc.) and only update value
+        updated_entry = dict(existing_entry)
+        updated_entry["value"] = value
+        self._commission._attributes_by_id[attr_id] = updated_entry
+
+        # Record in _attributes_dirty for pending PATCH (replace/upsert, not duplicate)
         self._commission._attributes_dirty[attr_id] = value
 
     def list(self) -> List[Dict[str, Any]]:

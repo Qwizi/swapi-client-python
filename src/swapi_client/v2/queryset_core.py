@@ -91,7 +91,7 @@ class CoreQuerySet:
         try:
             resp = await self.client.get(path, params=params)
         except SWAPIError as e:
-            raise SWAPIError(f"GET {path} failed: {e}")
+            raise type(e)(f"GET {path} failed: {e}") from e
 
         data = resp.get("data") or resp
         return self.model_cls(data)
@@ -108,7 +108,7 @@ class CoreQuerySet:
         try:
             resp = await self.client.post(path, json=payload)
         except SWAPIError as e:
-            raise SWAPIError(f"POST {path} failed: {e}")
+            raise type(e)(f"POST {path} failed: {e}") from e
 
         data = resp.get("data") or resp
         return self.model_cls(data)
@@ -125,7 +125,7 @@ class CoreQuerySet:
         try:
             resp = await self.client.patch(path, json=payload)
         except SWAPIError as e:
-            raise SWAPIError(f"PATCH {path} failed: {e}")
+            raise type(e)(f"PATCH {path} failed: {e}") from e
 
         data = resp.get("data") or resp
         return self.model_cls(data)
@@ -140,6 +140,6 @@ class CoreQuerySet:
         try:
             resp = await self.client.delete(path)
         except SWAPIError as e:
-            raise SWAPIError(f"DELETE {path} failed: {e}")
+            raise type(e)(f"DELETE {path} failed: {e}") from e
 
         return resp

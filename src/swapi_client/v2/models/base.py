@@ -150,12 +150,23 @@ class APIModel:
         """
         Zwraca dane do POST/PATCH.
         """
+        def _serialize(value: Any) -> Any:
+            if isinstance(value, DynamicObject):
+                return value.to_dict()
+            if isinstance(value, DynamicList):
+                return value.to_list()
+            return value
+
         if full:
             # POST
-            return {k: v for k, v in self.__dict__.items() if not k.startswith("_")}
+            return {
+                k: _serialize(v)
+                for k, v in self.__dict__.items()
+                if not k.startswith("_")
+            }
 
         # PATCH (dirty only)
-        return self._dirty
+        return {k: _serialize(v) for k, v in self._dirty.items()}
 
     def _reload_from_data(self, data: Dict[str, Any]):
         self._raw = data

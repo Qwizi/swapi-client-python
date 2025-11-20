@@ -13,6 +13,7 @@ from .q import Q
 from .queryset import SWAPIQuerySet, SWAPIListResponse
 from .queryset_core import CoreQuerySet
 from .dynamic import DynamicObject, DynamicList
+from .core_init import Core
 from . import models
 
 from .exceptions import (
@@ -33,6 +34,7 @@ __all__ = [
 	"SWAPIQuerySet",
 	"SWAPIListResponse",
 	"CoreQuerySet",
+	"Core",
 	"DynamicObject",
 	"DynamicList",
 	"models",

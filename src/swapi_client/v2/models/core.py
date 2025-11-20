@@ -1,6 +1,5 @@
 
 from ..dynamic import DynamicObject
-from ..queryset_core import CoreQuerySet
 
 
 class CoreModel(DynamicObject):
@@ -19,34 +18,11 @@ class CoreModel(DynamicObject):
     def __repr__(self):
         cls = self.__class__.__name__
 
-        # DynamicObject może mieć _raw lub _data
-        raw = getattr(self, "_raw", None)
-        data = getattr(self, "_data", None)
+        # Get public attributes (filter out private ones starting with '_')
+        public_keys = [key for key in self.__dict__.keys() if not key.startswith('_')]
 
-        mapping = raw if isinstance(raw, dict) else data
-
-        if not mapping:
+        if not public_keys:
             return f"<{cls} empty>"
 
-        keys = ", ".join(mapping.keys())
+        keys = ", ".join(public_keys)
         return f"<{cls} fields=[{keys}]>"
-    
-
-class Core:
-    """
-    Główna entry-point dla prostych endpointów typu:
-    /api/me
-    /api/home
-    /api/settings
-    /api/modules
-    /api/user/profile
-    itd.
-    """
-
-    client = None  # identycznie jak Commission.client
-
-    @classmethod
-    def objects(cls) -> CoreQuerySet:
-        if cls.client is None:
-            raise RuntimeError("Core.client must be assigned with SWAPIClient.")
-        return CoreQuerySet(cls.client, CoreModel)

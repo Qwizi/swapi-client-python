@@ -1,5 +1,7 @@
-from .models.core import CoreModel
+"""Core API entry-point for simple endpoints like /api/me, /api/home, etc."""
+
 from .queryset_core import CoreQuerySet
+from .models.core import CoreModel
 
 
 class Core:
