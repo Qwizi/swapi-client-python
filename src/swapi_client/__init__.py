@@ -1,4 +1,26 @@
-from .client import SWApiClient, BaseSWApiClient, SWQueryBuilder
-from .exceptions import SWException
+from .client import SWApiClient, AsyncSWApiClient
+from .exceptions import (
+    SWException,
+    SWHTTPError,
+    SWAuthenticationError,
+    SWForbiddenError,
+    SWNotFoundError,
+    SWValidationError,
+    SWRateLimitError,
+    SWServerError,
+    SWConnectionError,
+)
 
-__all__ = ["SWApiClient", "BaseSWApiClient", "SWException", "SWQueryBuilder"]
+__all__ = [
+    "SWApiClient",
+    "AsyncSWApiClient",
+    "SWException",
+    "SWHTTPError",
+    "SWAuthenticationError",
+    "SWForbiddenError",
+    "SWNotFoundError",
+    "SWValidationError",
+    "SWRateLimitError",
+    "SWServerError",
+    "SWConnectionError",
+]
