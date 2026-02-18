@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "swapi-client"
-version = "0.2.5"
+version = "0.2.6"
 description = "API client for Serwis Planner"
 readme = "README.md"
 requires-python = ">=3.12"
