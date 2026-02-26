@@ -68,6 +68,27 @@ class SWApiClient(BaseSyncClient):
     def me(self) -> dict:
         """Return data of the currently authenticated user."""
         return self.get("/api/me")
+    
+    def mobile_phases_config(self) -> dict:
+        """Return configuration of mobile phases."""
+        return self.get("/api/mobile_service_app_configs/1")
+    
+    def create_user_geolocations(self, data: dict) -> dict:
+        """
+        Create user geolocations entry for the current user.
+        {
+            "data": [
+                    {
+                        "date": "2026-02-26T07:56:23Z",
+                        "longitude": -122.084,
+                        "latitude": 37.4219983,
+                        "isHighAccuracy": false
+                    }
+                ]
+            }
+                    
+        """
+        return self.post("/api/user_geolocations", json=data)
 
 
 class AsyncSWApiClient(BaseAsyncClient):
@@ -101,3 +122,24 @@ class AsyncSWApiClient(BaseAsyncClient):
     async def me(self) -> dict:
         """Return data of the currently authenticated user."""
         return await self.get("/api/me")
+    
+    async def mobile_phases_config(self) -> dict:
+        """Return configuration of mobile phases."""
+        return await self.get("/api/mobile_service_app_configs/1")
+    
+    async def create_user_geolocations(self, data: dict) -> dict:
+        """
+        Create user geolocations entry for the current user.
+        {
+            "data": [
+                    {
+                    "date": "2026-02-26T07:56:23Z",
+                    "longitude": -122.084,
+                    "latitude": 37.4219983,
+                    "isHighAccuracy": false
+                    }
+                ]
+            }
+                    
+        """
+        return await self.post("/api/user_geolocations", json=data)
