@@ -1,57 +1,127 @@
-name: Create Release
+name: Release and Publish PyPI
 
 on:
-    push:
-        branches:
-            - master
-        paths-ignore:
-            - README.md
-            - .gitignore
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - src/**
+      - pyproject.toml
+      - uv.lock
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-    release:
-        name: Create Release
-        runs-on: ubuntu-latest
+  release:
+    name: Set CalVer and create GitHub release
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
 
-        steps:
-            -   name: Check out the repo
-                uses: actions/checkout@v4.1.7
-                with:
-                    token: ${{ secrets.RELEASE_GIT_TOKEN }}
-            -   name: Update version in pyproject.toml
-                id: version_bump
-                run: |
-                    OLD_VERSION=$(awk -F ' = ' '/^version =/ {gsub(/"/, "", $2); print $2}' pyproject.toml)
-                    
-                    IFS='.' read -r -a V_PARTS <<< "$OLD_VERSION"
-                    V_PARTS[2]=$((V_PARTS[2] + 1))
-                    NEW_VERSION="${V_PARTS[0]}.${V_PARTS[1]}.${V_PARTS[2]}"
-                    
-                    # Using awk for safer replacement
-                    awk -v old="version = \"$OLD_VERSION\"" -v new="version = \"$NEW_VERSION\"" '{gsub(old, new)}1' pyproject.toml > pyproject.toml.tmp && mv pyproject.toml.tmp pyproject.toml
-                    
-                    echo "New version: $NEW_VERSION"
-                    echo "VERSION=$NEW_VERSION" >> "$GITHUB_OUTPUT"
-            -   name: Commit and push changes
-                run: |
-                    git config --global user.email "github@actions.com"
-                    git config --global user.name "GitHub Actions"
-                    git add pyproject.toml
-                    if [[ -n "$(git diff --cached)" ]]; then
-                        git commit -m "Bump version to ${{ steps.version_bump.outputs.VERSION }} [skip ci]"
-                        git push
-                    else
-                        echo "No changes to commit"
-                    fi
-            -   name: Extract version from pyproject.toml
-                id: extract_metadata
-                run: |
-                    VERSION=$(awk -F ' = ' '/^version =/ {gsub(/"/, "", $2); print $2}' ./pyproject.toml)
-                    echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-                shell: bash
-            -   name: Release New Version
-                uses: softprops/action-gh-release@v1
-                with:
-                    name: v${{ steps.extract_metadata.outputs.version }}
-                    tag_name: v${{ steps.extract_metadata.outputs.version }}
-                    token: ${{ secrets.RELEASE_GIT_TOKEN }}
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Compute and set CalVer in pyproject.toml
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git fetch --tags --force
+
+          OLD_VERSION="$(uv version --short)"
+          YEAR="$(date -u +%Y)"
+          MONTH="$((10#$(date -u +%m)))"
+          DAY="$((10#$(date -u +%d)))"
+          CALVER_PREFIX="${YEAR}.${MONTH}.${DAY}"
+
+          NEXT_BUILD=1
+          while read -r TAG_LINE; do
+            BUILD="${TAG_LINE#v${CALVER_PREFIX}.}"
+            if [[ "${BUILD}" =~ ^[0-9]+$ ]] && (( BUILD >= NEXT_BUILD )); then
+              NEXT_BUILD=$((BUILD + 1))
+            fi
+          done < <(git tag --list "v${CALVER_PREFIX}.*")
+
+          NEW_VERSION="${CALVER_PREFIX}.${NEXT_BUILD}"
+          uv version "${NEW_VERSION}" --frozen
+
+          TAG="v${NEW_VERSION}"
+
+          echo "old_version=${OLD_VERSION}" >> "${GITHUB_OUTPUT}"
+          echo "version=${NEW_VERSION}" >> "${GITHUB_OUTPUT}"
+          echo "tag=${TAG}" >> "${GITHUB_OUTPUT}"
+
+      - name: Commit version bump and push
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add pyproject.toml
+          if git diff --cached --quiet; then
+            echo "No version changes detected"
+          else
+            git commit -m "release: bump version to ${{ steps.version.outputs.tag }} [skip ci]"
+            git push origin HEAD:${GITHUB_REF_NAME}
+          fi
+
+          if git rev-parse "${{ steps.version.outputs.tag }}" >/dev/null 2>&1; then
+            echo "Tag ${{ steps.version.outputs.tag }} already exists"
+          else
+            git tag "${{ steps.version.outputs.tag }}"
+            git push origin "${{ steps.version.outputs.tag }}"
+          fi
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ steps.version.outputs.tag }}
+          tag_name: ${{ steps.version.outputs.tag }}
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  publish:
+    name: Build and publish to PyPI
+    runs-on: ubuntu-latest
+    needs: release
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release.outputs.tag }}
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Build
+        run: uv build
+
+      - name: Publish
+        run: uv publish --token ${{ secrets.PYPI_TOKEN }}
